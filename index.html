@@ -83,13 +83,14 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)
 .card.touch{border-color:var(--acc)}
 .card.touch .action{color:var(--acc)}
 .card.empty{opacity:.45;border-style:dashed}
-.strip{display:flex;flex-direction:column;gap:4px;margin:10px 0 18px;font-size:13px}
-.strip .lane{position:relative;height:10px;border-radius:5px;background:#2a3540}
-.strip .lane i{position:absolute;top:-6px;width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent}
-.strip .lane.laneL i{border-bottom:10px solid var(--L)}
-.strip .lane.laneR i{border-top:10px solid var(--R)}
-.strip .tag{position:absolute;left:0;top:-20px;font-size:11px;color:var(--dim)}
-.strip .lane.laneR .tag{top:12px}
+.strip{display:grid;grid-template-columns:64px 1fr 1fr;gap:4px 8px;align-items:center;margin:10px 0 18px;font-size:13px}
+.strip .snum{color:var(--dim);font-size:12px;text-align:right;padding-right:6px}
+.strip .scell{height:26px;border-radius:7px;display:flex;align-items:center;gap:6px;padding:0 8px;font-size:12px;background:var(--panel);border:1px solid #2a3540;overflow:hidden;white-space:nowrap}
+.strip .scell.L{border-left:3px solid var(--L);color:#7fe0a8}
+.strip .scell.R{border-left:3px solid var(--R);color:#ff8a8d}
+.strip .scell.empty{opacity:.35;border-left-style:dashed;color:var(--dim)}
+.strip .scell.touch{border-color:var(--acc);font-weight:700}
+.strip .shead{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
 dialog{background:var(--panel);color:var(--ink);border:1px solid #3a4653;border-radius:12px;padding:20px;max-width:560px;width:92%}
 dialog::backdrop{background:rgba(0,0,0,.6)}
 .preset{padding:10px;border:1px solid #2a3540;border-radius:10px;margin-bottom:8px;cursor:pointer}
@@ -98,7 +99,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .hint{font-size:12px;color:var(--dim);margin:6px 0 12px;line-height:1.5}
 </style>
-<script type="text/javascript" nonce="15b8d581e01e40f3a6f727413a4" src="//local.adguard.org?ts=1791311210074&amp;type=content-script&amp;dmn=api.rool.dev&amp;url=https%3A%2F%2Fapi.rool.dev%2Fv2%2Fmachines%2FPH6QdB%2Fdav%2Frool-drive%2Fgithub-pages%2Findex.html&amp;app=chrome.exe&amp;css=3&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=0&amp;stealth=1&amp;st-dnt"></script><script type="text/javascript" nonce="15b8d581e01e40f3a6f727413a4" src="//local.adguard.org?ts=1791311210074&amp;name=AdGuard%20Extra&amp;name=AdGuard%20Popup%20Blocker&amp;type=user-script"></script></head>
+<script type="text/javascript" nonce="15b8d581e01e40f3a6f727413a4" src="//local.adguard.org?ts=1791314677902&amp;type=content-script&amp;dmn=api.rool.dev&amp;url=https%3A%2F%2Fapi.rool.dev%2Fv2%2Fmachines%2FPH6QdB%2Fdav%2Frool-drive%2Fgithub-pages%2Findex.html&amp;app=chrome.exe&amp;css=3&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=0&amp;stealth=1&amp;st-dnt"></script><script type="text/javascript" nonce="15b8d581e01e40f3a6f727413a4" src="//local.adguard.org?ts=1791314677902&amp;name=AdGuard%20Extra&amp;name=AdGuard%20Popup%20Blocker&amp;type=user-script"></script></head>
 <body>
 <header>
   <h1>🤺 Fencing Action Cards</h1>
@@ -383,15 +384,22 @@ function render(){
   const strip = document.getElementById("strip");
   strip.innerHTML = "";
   if(slots.length){
-    const laneL = document.createElement("div"); laneL.className="lane laneL"; laneL.innerHTML="<span class='tag'>L</span>";
-    const laneR = document.createElement("div"); laneR.className="lane laneR"; laneR.innerHTML="<span class='tag'>R</span>";
+    const head = document.createElement("div"); head.className="snum";
+    const hL = document.createElement("div"); hL.className="shead"; hL.textContent="Fencer L";
+    const hR = document.createElement("div"); hR.className="shead"; hR.textContent="Fencer R";
+    strip.appendChild(head); strip.appendChild(hL); strip.appendChild(hR);
     slots.forEach((sl,i)=>{
-      const left = (i/(slots.length-1||1))*92+4;
-      const mk = lane=>{const t=document.createElement("i");t.style.left=left+"%";lane.appendChild(t);};
-      if(sl.L && sl.L.act!==EMPTY) mk(laneL);
-      if(sl.R && sl.R.act!==EMPTY) mk(laneR);
+      const num=document.createElement("div"); num.className="snum"; num.textContent=i+1;
+      strip.appendChild(num);
+      ["L","R"].forEach(sd=>{
+        const a=sl[sd]; const A=a&&ACTIONS[a.act]||{};
+        const c=document.createElement("div");
+        const empty=!a||a.act===EMPTY;
+        c.className="scell "+sd+(empty?" empty":"")+(A.side==="touch"?" touch":"");
+        c.textContent = empty ? "— no action" : (A.label + (A.side==="touch"?" 💥":""));
+        strip.appendChild(c);
+      });
     });
-    strip.appendChild(laneL); strip.appendChild(laneR);
   }
 }
 function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
