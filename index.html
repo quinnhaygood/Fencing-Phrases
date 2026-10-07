@@ -67,6 +67,13 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)
 .card .half.L .lbl{color:#7fe0a8}.card .half.R .lbl{color:#ff8a8d}
 .card .tagT{color:var(--acc);font-size:10px;margin-left:4px}
 .card.simcard{border-color:var(--acc)}
+.slot.lockout{border-color:#e0a83c}
+.card.lockoutcard{border-color:#e0a83c}
+.locktgl{font-size:12px;color:#e0a83c;display:inline-flex;align-items:center;gap:3px;cursor:pointer;user-select:none}
+.locktgl input{accent-color:#e0a83c}
+.lockbadge{background:#e0a83c;color:#1a1a1a;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;display:inline-block;margin:0 14px 6px}
+.lockbadge.cont{background:#6b5a2e;color:#f0d8a0}
+.snum.locknum{color:#e0a83c}
 .cards.strip-mode .card{width:100%}
 .card .prio{margin-top:0}
 .card .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -99,7 +106,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .hint{font-size:12px;color:var(--dim);margin:6px 0 12px;line-height:1.5}
 </style>
-<script type="text/javascript" nonce="15b8d581e01e40f3a6f727413a4" src="//local.adguard.org?ts=1791314677902&amp;type=content-script&amp;dmn=api.rool.dev&amp;url=https%3A%2F%2Fapi.rool.dev%2Fv2%2Fmachines%2FPH6QdB%2Fdav%2Frool-drive%2Fgithub-pages%2Findex.html&amp;app=chrome.exe&amp;css=3&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=0&amp;stealth=1&amp;st-dnt"></script><script type="text/javascript" nonce="15b8d581e01e40f3a6f727413a4" src="//local.adguard.org?ts=1791314677902&amp;name=AdGuard%20Extra&amp;name=AdGuard%20Popup%20Blocker&amp;type=user-script"></script></head>
+</head>
 <body>
 <header>
   <h1>🤺 Fencing Phrases</h1>
@@ -120,7 +127,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 <section id="builder">
   <h2>Timeline — L and R share each time slot</h2>
   <div class="hint">Each numbered slot is one moment in the phrase. L and R can act in the same slot (simultaneous) or in different slots (before / after). This edition shows the action timeline only — it deliberately does not assign priority or give verdicts. Use it to pose the question to your students; the call is theirs.
-Annotations you type are for your own scripting only: they are not saved in the JSON and never appear on the exported image.</div>
+Annotations you type are for your own scripting only: they are not saved in the JSON and never appear on the exported image. Tick the ⏱ box on consecutive slots to mark them as inside the lockout window — actions there are too close for the box to separate, and the cards carry an "n actions within lockout" badge.</div>
   <div id="slots"></div>
   <div style="display:flex;gap:8px;margin-top:10px">
     <button class="primary" onclick="addSlot()">+ Time slot</button>
@@ -159,8 +166,8 @@ const ACTIONS = {
   point_line:  {label:"Establish point in line", arrow:"—|", side:"offense"},
   beat:        {label:"Beat the blade", arrow:"⚡", side:"blade"},
   take_blade:  {label:"Prise de fer / bind", arrow:"⛓", side:"blade"},
-  parry_search:{label:"Parry - search", arrow:"🛡✗", side:"defense"},
-  parry_success:{label:"Parry - finds the blade", arrow:"🛡✓", side:"defense"},
+  parry:       {label:"Parry", arrow:"🛡", side:"defense"},
+  parry_success:{label:"Parry — finds the blade", arrow:"🛡✓", side:"defense"},
   riposte:     {label:"Riposte", arrow:"➤", side:"offense"},
   counter_riposte:{label:"Counter-riposte", arrow:"➤", side:"offense"},
   remise:      {label:"Remise / reprise (renewal)", arrow:"➤", side:"offense"},
@@ -334,7 +341,8 @@ function render(){
   const res = analyse(slots, weapon);
   slots.forEach((slot,i)=>{
     const d = document.createElement("div");
-    d.className = "slot" + (res.per[i] && res.per[i].kind==="sim" ? " sim":"");
+    const lg=lockOf(i);
+    d.className = "slot" + (res.per[i] && res.per[i].kind==="sim" ? " sim":"") + (lg?" lockout":"");
     const cell = (s)=>{
       const a = slot[s];
       return `<div class="acell ${s}${a&&a.act==="touch"?" touch":""}">
@@ -345,8 +353,9 @@ function render(){
     d.innerHTML = `
       <div class="head">
         <span class="num">${i+1}</span>
-        <span class="ttl">time slot ${i+1}${res.per[i]&&res.per[i].kind==="sim"?" — simultaneous":""}</span>
+        <span class="ttl">time slot ${i+1}${res.per[i]&&res.per[i].kind==="sim"?" — simultaneous":""}${lg?" — lockout window":""}</span>
         <span class="ctl">
+          <label class="locktgl" title="Mark this slot as inside the lockout window (actions indistinguishable in time)"><input type="checkbox" onchange="setLock(${i},this.checked)" ${slot.lockout?"checked":""}> ⏱</label>
           <button title="Move up" onclick="move(${i},-1)">▲</button>
           <button title="Move down" onclick="move(${i},1)">▼</button>
           <button title="Delete slot" onclick="del(${i})">✕</button>
@@ -373,10 +382,13 @@ function render(){
         
       </div>`;
     };
+    const lg = lockOf(i);
     const c = document.createElement("div");
-    c.className = "card slotcard" + (res.per[i]&&res.per[i].kind==="sim"?" simcard":"");
+    c.className = "card slotcard" + (res.per[i]&&res.per[i].kind==="sim"?" simcard":"") + (lg?" lockoutcard":"");
+    const badge = lg && i===lg.start ? `<div class="lockbadge">⏱ ${lg.actions} action${lg.actions===1?"":"s"} within lockout</div>` : (lg ? `<div class="lockbadge cont">… still within lockout</div>` : "");
     c.innerHTML = `
       <div class="top"><span class="num">${i+1}</span><span class="ttl">time slot ${i+1}${res.per[i]&&res.per[i].kind==="sim"?" — simultaneous":""}</span></div>
+      ${badge}
       <div class="row">${half("L")}${half("R")}</div>`;
     cards.appendChild(c);
   });
@@ -389,7 +401,7 @@ function render(){
     const hR = document.createElement("div"); hR.className="shead"; hR.textContent="Fencer R";
     strip.appendChild(head); strip.appendChild(hL); strip.appendChild(hR);
     slots.forEach((sl,i)=>{
-      const num=document.createElement("div"); num.className="snum"; num.textContent=i+1;
+      const num=document.createElement("div"); num.className="snum"+(lockOf(i)?" locknum":""); num.textContent=(lockOf(i)?"⏱ ":"")+(i+1);
       strip.appendChild(num);
       ["L","R"].forEach(sd=>{
         const a=sl[sd]; const A=a&&ACTIONS[a.act]||{};
@@ -408,6 +420,18 @@ function setCell(i,s,k,v){
   render();
 }
 function setNote(i,v){ slots[i].note=v; }
+function setLock(i,v){ slots[i].lockout=!!v; render(); }
+// contiguous locked slots form one lockout window; returns {start,end,actions} per slot or null
+function lockGroups(){
+  const g=[]; let cur=null;
+  slots.forEach((sl,i)=>{
+    if(sl.lockout){ if(!cur){cur={start:i,end:i,actions:0};g.push(cur);} cur.end=i; 
+      ["L","R"].forEach(sd=>{const a=sl[sd]; if(a&&a.act!==EMPTY)cur.actions++;}); }
+    else cur=null;
+  });
+  return g;
+}
+function lockOf(i){ return lockGroups().find(g=>i>=g.start&&i<=g.end)||null; }
 function move(i,d){ const j=i+d; if(j<0||j>=slots.length)return; [slots[i],slots[j]]=[slots[j],slots[i]]; render(); }
 function del(i){ slots.splice(i,1); render(); }
 function addSlot(){ slots.push({L:null,R:null,note:""}); render(); }
@@ -490,9 +514,9 @@ function usePreset(i){
 /* ---------- persistence ---------- */
 const KEY = "fencingRefDiagrams2";
 function saveLocal(){ localStorage.setItem(KEY, JSON.stringify({weapon, slots})); alert("Saved in this browser."); }
-function loadLocal(){ const d=localStorage.getItem(KEY); if(!d)return alert("Nothing saved yet."); const o=JSON.parse(d); weapon=o.weapon||"foil"; document.getElementById("weapon").value=weapon; slots=(o.slots||[]).map(sl=>({L:sl.L?{act:sl.L.act}:null, R:sl.R?{act:sl.R.act}:null})); render(); }
+function loadLocal(){ const d=localStorage.getItem(KEY); if(!d)return alert("Nothing saved yet."); const o=JSON.parse(d); weapon=o.weapon||"foil"; document.getElementById("weapon").value=weapon; slots=(o.slots||[]).map(sl=>({L:sl.L?{act:sl.L.act}:null, R:sl.R?{act:sl.R.act}:null, lockout:!!sl.lockout})); render(); }
 function exportJSON(){
-  const clean = slots.map(sl=>({ L: sl.L?{act:sl.L.act}:null, R: sl.R?{act:sl.R.act}:null }));
+  const clean = slots.map(sl=>({ L: sl.L?{act:sl.L.act}:null, R: sl.R?{act:sl.R.act}:null, ...(sl.lockout?{lockout:true}:{}) }));
   const blob = new Blob([JSON.stringify({weapon, slots:clean},null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download="fencing-action-cards.json"; a.click();
@@ -500,7 +524,7 @@ function exportJSON(){
 function importJSON(inp){
   const f=inp.files[0]; if(!f)return;
   const r=new FileReader();
-  r.onload=()=>{ const o=JSON.parse(r.result); weapon=o.weapon||"foil"; document.getElementById("weapon").value=weapon; slots=(o.slots||[]).map(sl=>({L:sl.L?{act:sl.L.act}:null, R:sl.R?{act:sl.R.act}:null})); render(); };
+  r.onload=()=>{ const o=JSON.parse(r.result); weapon=o.weapon||"foil"; document.getElementById("weapon").value=weapon; slots=(o.slots||[]).map(sl=>({L:sl.L?{act:sl.L.act}:null, R:sl.R?{act:sl.R.act}:null, lockout:!!sl.lockout})); render(); };
   r.readAsText(f);
 }
 document.getElementById("weapon").addEventListener("change",e=>{weapon=e.target.value;render();});
@@ -513,7 +537,8 @@ function exportPNG(){
   const flat = slots.map((slot,i)=>({slot,i})).filter(f=>f.slot.L||f.slot.R);
   // dynamic card height: header + halves + priority + why
   const flatH = flat.map(f=>{
-    const h = 188;
+    const lg=lockOf(f.i);
+    const h = 188 + (lg && f.i===lg.start ? 26 : (lg?22:0));
     return h;
   });
   const n = flat.length;
@@ -541,10 +566,20 @@ function exportPNG(){
     const CH = flatH[k];
     x.fillStyle="#1a2129"; x.strokeStyle="#2a3540";
     x.beginPath(); x.roundRect(PAD,y,CW,CH,14); x.fill(); x.stroke();
+    const lg=lockOf(f.i);
+    const firstOfLock = lg && f.i===lg.start;
+    const inLock = !!lg;
     x.fillStyle="#93a3b3"; x.font="bold 12px 'Segoe UI', sans-serif";
     x.fillText("TIME SLOT "+(f.i+1), PAD+16, y+24);
     const sim = res.per[f.i] && res.per[f.i].kind==="sim";
     if(sim){ x.fillStyle="#e8b83a"; x.textAlign="right"; x.fillText("simultaneous", PAD+CW-16, y+24); x.textAlign="left"; }
+    if(inLock){
+      x.fillStyle=firstOfLock?"#e0a83c":"#6b5a2e";
+      x.font="bold 12px 'Segoe UI', sans-serif";
+      const label = firstOfLock ? "⏱ "+lg.actions+" action"+(lg.actions===1?"":"s")+" within lockout" : "⏱ … within lockout";
+      x.fillText(label, PAD+CW-16, y+42, CW-140); x.fillStyle="#93a3b3";
+      if(firstOfLock){ x.strokeStyle="#e0a83c"; x.beginPath(); x.roundRect(PAD,y,CW,CH,14); x.stroke(); }
+    }
     const HW=(CW-46)/2;
     ["L","R"].forEach((s,hi)=>{
       const hx = PAD+16 + hi*(HW+8), hy = y+34;
@@ -575,7 +610,7 @@ function exportPNG(){
     y += CH + GAP;
   });
   x.fillStyle="#5a6673"; x.font="11px 'Segoe UI', sans-serif";
-  x.fillText("Fencing Phrases — "+weapon.charAt(0).toUpperCase()+weapon.slice(1), PAD, y+10);
+  x.fillText("Fencing Phrases — teaching tool (calls not assigned)", PAD, y+10);
   const link=document.createElement("a");
   link.download="Fencing Phrases.png"; link.href=cvs.toDataURL("image/png"); link.click();
 }
