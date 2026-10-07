@@ -526,7 +526,7 @@ function exportPNG(){
   x.fillStyle="#101418"; x.fillRect(0,0,cvs.width/SCALE,cvs.height/SCALE);
   // title
   x.fillStyle="#e8edf2"; x.font="bold 22px 'Segoe UI', sans-serif";
-  x.fillText("Fencing Action Cards — "+weapon.charAt(0).toUpperCase()+weapon.slice(1), PAD, 36);
+  x.fillText("Fencing Phrases — "+weapon.charAt(0).toUpperCase()+weapon.slice(1), PAD, 36);
   x.fillStyle="#93a3b3"; x.font="12px 'Segoe UI', sans-serif";
   x.fillText(new Date().toLocaleDateString(), PAD+cvs.width/SCALE-2*PAD-x.measureText(new Date().toLocaleDateString()).width, 36);
   // verdict banner
@@ -575,9 +575,9 @@ function exportPNG(){
     y += CH + GAP;
   });
   x.fillStyle="#5a6673"; x.font="11px 'Segoe UI', sans-serif";
-  x.fillText("Fencing Action Cards — teaching tool (calls not assigned)", PAD, y+10);
+  x.fillText("Fencing Phrases — "+weapon.charAt(0).toUpperCase()+weapon.slice(1), PAD, y+10);
   const link=document.createElement("a");
-  link.download="Fencing Action Cards.png"; link.href=cvs.toDataURL("image/png"); link.click();
+  link.download="Fencing Phrases.png"; link.href=cvs.toDataURL("image/png"); link.click();
 }
 function wrapText(x, text, cx, cy, maxW, lh, maxLines){
   const words = String(text).split(" "); let line="", y=cy, lines=0;
