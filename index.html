@@ -133,7 +133,6 @@ Annotations you type are for your own scripting only: they are not saved in the 
     <button class="primary" onclick="addSlot()">+ Time slot</button>
     <button onclick="clearAll()">Clear</button>
   </div>
-  <div id="verdict"></div>
 </section>
 <section id="stage">
   <div class="toolbar">
@@ -214,108 +213,8 @@ function analyse(list, w){
   const off = a => a && ACTIONS[a] && ACTIONS[a].side==="offense";
   const renewal = a => a && ["remise","counter_riposte"].includes(a);
 
-  list.forEach((slot, i)=>{
-    const oL = slot.L && slot.L.act, oR = slot.R && slot.R.act;
-    if(oL==="touch") touches.L = i;
-    if(oR==="touch") touches.R = i;
-
-    const note = [];
-    let kind = "neutral";
-    const pL = oL==="parry_success", pR = oR==="parry_success";
-
-    // 1) successful parries apply first (blade contact precedes riposte)
-    if((pL && prio!=="L") || (pR && prio!=="R")){
-      const ps = pL ? "L" : "R";
-      if(prio){
-        note.push(fnc(ps)+" parries and finds the blade of "+fnc(prio)+" — right-of-way passes to "+fnc(ps)+".");
-      } else {
-        note.push(fnc(ps)+" parries and finds the blade — priority to "+fnc(ps)+".");
-      }
-      prio = ps; opened = ps; reason = "riposte after the parry"; line = null; lastRenewal = null;
-      parried = true; renewalAfterParry = false;
-      kind = "gain";
-    } else if(pL || pR){
-      note.push("Parry again — priority already with "+fnc(pL?"L":"R")+".");
-    }
-
-    // 1b) a miss ends that fencer's attacking action (falls short)
-    if(oL==="miss"||oR==="miss"){
-      const ms = oL==="miss" ? "L" : "R";
-      if(prio===ms){
-        note.push(fnc(ms)+"'s attack misses (falls short) — their attack is over; no touch on this action.");
-        prio = null; opened = null; reason = null; parried = false; lastRenewal = null;
-      } else if(prio){
-        note.push(fnc(ms)+" misses (falls short) — the counter-attack attempt does not arrive.");
-      } else {
-        note.push(fnc(ms)+"'s attack misses (falls short).");
-      }
-      kind = "neutral";
-    }
-
-    // 2) offensive actions, L then R, in this slot
-    const offs = [["L",oL],["R",oR]].filter(([s,a])=>off(a));
-    if(offs.length===2){
-      // Arm-vs-delivery: the attack begins with the arm. An arm action (attack/extend/line)
-      // in the same slot as a delivery action (lunge/flèche) is NOT simultaneous — the arm is first.
-      const rank = a => ["attack","extend","point_line"].includes(a) ? 0 : 1;
-      const rL = rank(oL), rR = rank(oR);
-      if(rL !== rR && !prio){
-        const ws = rL < rR ? "L" : "R";
-        const os = ws==="L"?"R":"L";
-        opened = ws; prio = ws; parried = false; reason = "attack";
-        kind = "gain";
-        note.push(fnc(ws)+"'s arm is out in this slot while "+fnc(os)+" only delivers (lunge/flèche) — the attack begins with the arm, so "+fnc(ws)+" is before "+fnc(os)+".");
-      } else if(prio && offs.some(([s,a])=>s===prio && renewal(a))){
-        // renewal by the priority holder + opponent acting in the same slot
-        kind = "prep";
-        const rs = offs.find(([s,a])=>s===prio && renewal(a))[0];
-        const os = rs==="L"?"R":"L";
-        lastRenewal = rs; renewalAfterParry = parried;
-        note.push(fnc(prio)+" renews (remise/reprise) in the same slot as "+fnc(os)+"'s action — a renewal keeps the established right-of-way.");
-      } else if(prio){
-        kind = "prep";
-        const os = offs.find(([s])=>s!==prio)[0];
-        note.push(fnc(os)+" acts in the same slot as "+fnc(prio)+"'s action — but "+fnc(prio)+"'s attack is already out; the second action is into the preparation and cannot take priority.");
-      } else {
-        kind = "sim";
-        prio = null; opened = null; reason = null; line = null;
-        note.push("Simultaneous offensive actions — neither is before the other.");
-      }
-    } else if(offs.length===1){
-      const [s,a] = offs[0]; const o = s==="L"?"R":"L";
-      if(prio === s){
-        if(a==="point_line") line = s;
-        kind = "gain";
-        note.push(fnc(s)+" continues their action — priority still with "+fnc(s)+".");
-      } else if(!prio){
-        opened = s; prio = s; parried = false; reason = a==="point_line" ? "point in line" : "attack";
-        if(a==="point_line") line = s;
-        kind = "gain";
-        note.push(fnc(s)+" opens the phrase — "+(a==="point_line"?"point in line, priority to the line":"the attack. Right-of-way with "+fnc(s)+"."));
-      } else {
-        // the non-priority fencer acts offensively: counter-attack, never takes priority
-        kind = "prep";
-        if(renewal(a)){
-          lastRenewal = s; renewalAfterParry = parried;
-          note.push(fnc(s)+" renews — no new priority; the renewal counts only if "+fnc(prio)+"'s riposte never arrives.");
-        } else {
-          note.push(fnc(s)+" acts while "+fnc(prio)+"'s action is already out — counter-attack into the preparation; it cannot take priority.");
-        }
-        if(line && line!==s) note.push("Attacking onto the point in line of "+fnc(line)+".");
-      }
-    }
-
-    // 3) point in line established offensively-defensively
-    if(oL==="point_line"||oR==="point_line"){
-      const ls = oL==="point_line" ? "L" : "R";
-      line = ls;
-      if(!prio){ prio = ls; opened = ls; reason = "point in line"; kind = "gain"; note.push(fnc(ls)+" establishes the point in line."); }
-    }
-    if(oL==="opposition"||oR==="opposition") line = null;
-    if(!note.length) note.push(prio ? "Priority still with "+fnc(prio)+"." : "No priority established yet.");
-    per.push({prio, why:note.join(" "), kind});
-  });
-
+  
+  
   // ---- resolve the touch: this edition does NOT assign priority ----
   const landed = s => touches[s] !== null;
   let verdict = "";
@@ -365,7 +264,7 @@ function render(){
       <input class="note" placeholder="Optional annotation…" value="${(slot.note||"").replace(/"/g,"&quot;")}" onchange="setNote(${i},this.value)">`
     el.appendChild(d);
   });
-  document.getElementById("verdict").innerHTML = "<h2 style='margin-top:0'>Referee read</h2>" + (res.verdict||"—");
+  //document.getElementById("verdict").innerHTML = "<h2 style='margin-top:0'>Referee read</h2>" + (res.verdict||"—");
   // cards: one per time slot — L and R share the card so the timeline stays coherent
   const cards = document.getElementById("cards");
   cards.innerHTML = "";
